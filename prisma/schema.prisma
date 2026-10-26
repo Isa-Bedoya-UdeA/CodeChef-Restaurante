@@ -1,0 +1,155 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum MovementType {
+  IN
+  OUT
+}
+
+enum Unit {
+  KG
+  G
+  ML
+  L
+  UNITS
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REJECTED
+  REFUNDED
+}
+
+enum IngredientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  role      Role     @default(USER)
+  name      String
+  password  String
+  email     String   @unique
+  photo     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions InventoryTransaction[]
+  ingredients  Ingredient[]
+  orders       Order[]
+}
+
+model Ingredient {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique
+  unit      Unit
+  stock     Decimal          @db.Decimal(10, 3)
+  status    IngredientStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+
+  transactions InventoryTransaction[]
+  recipes      Recipe[]
+}
+
+model InventoryTransaction {
+  id           Int          @id @default(autoincrement())
+  createdAt    DateTime     @default(now())
+  quantity     Decimal      @db.Decimal(10, 3)
+  balanceAfter Decimal      @db.Decimal(10, 3)
+  type         MovementType
+  reason       String?
+
+  ingredientId Int
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+}
+
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String
+  price     Int
+  category  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recipes    Recipe[]
+  orderItems OrderItem[]
+}
+
+model Recipe {
+  id           Int     @id @default(autoincrement())
+  quantityUsed Decimal @db.Decimal(10, 3)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  ingredientId Int
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([productId, ingredientId])
+}
+
+model Order {
+  id            Int            @id @default(autoincrement())
+  status        OrderStatus    @default(PENDING)
+  paymentMethod PaymentMethod?
+  paymentStatus PaymentStatus  @default(PENDING)
+  total         Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  quantity  Int
+  unitPrice Int
+  note      String?
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}

@@ -1,0 +1,46 @@
+name: CI Build & Tests
+
+on:
+  push:
+    branches: ["main", "feature/**", "schema-y-seed"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/testdb?schema=public"
+      AUTH_SECRET: "ci-secret-codechef-restaurant-testing-key-32chars"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12.11.2
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm run db:generate
+
+      - name: Typecheck TypeScript
+        run: pnpm run typecheck
+
+      - name: Run Vitest Unit & Integration Tests
+        run: pnpm run test
+
+      - name: Build Next.js Application
+        run: pnpm run build
